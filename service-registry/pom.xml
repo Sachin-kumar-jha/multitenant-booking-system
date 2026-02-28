@@ -1,0 +1,56 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+
+        <groupId>com.ticket</groupId>
+
+        <artifactId>ticket-booking-system</artifactId>
+
+        <version>1.0.0</version>
+
+    </parent>
+
+    <artifactId>service-registry</artifactId>
+
+    <name>service-registry</name>
+
+    <dependencies>
+
+        <!-- Spring Boot Web -->
+        <dependency>
+
+            <groupId>org.springframework.boot</groupId>
+
+            <artifactId>
+                spring-boot-starter-web
+            </artifactId>
+
+        </dependency>
+
+        <!-- Eureka Server -->
+        <dependency>
+
+            <groupId>org.springframework.cloud</groupId>
+
+            <artifactId>
+                spring-cloud-starter-netflix-eureka-server
+            </artifactId>
+
+        </dependency>
+
+        <!-- Actuator -->
+        <dependency>
+
+            <groupId>org.springframework.boot</groupId>
+
+            <artifactId>
+                spring-boot-starter-actuator
+            </artifactId>
+
+        </dependency>
+
+    </dependencies>
+
+</project>

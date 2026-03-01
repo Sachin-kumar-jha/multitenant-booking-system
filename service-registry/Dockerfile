@@ -1,32 +1,14 @@
-# Multi-stage build for Service Registry
-FROM eclipse-temurin:21-jdk-alpine AS builder
-WORKDIR /app
-
-# Copy maven wrapper and pom files
-COPY .mvn .mvn
-COPY mvnw .
-COPY pom.xml .
-
-# Copy parent pom
-COPY ../pom.xml ../pom.xml
-
-# Download dependencies
-RUN ./mvnw dependency:go-offline -B || true
-
-# Copy source and build
-COPY src src
-RUN ./mvnw package -DskipTests -B
-
-# Runtime stage
-FROM eclipse-temurin:21-jre-alpine
+# Service Registry Dockerfile
+# Pre-build JAR with: mvn clean package -DskipTests
+FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
 # Add non-root user
 RUN addgroup -g 1001 -S appgroup && \
     adduser -u 1001 -S appuser -G appgroup
 
-# Copy the built jar
-COPY --from=builder /app/target/*.jar app.jar
+# Copy the pre-built jar
+COPY target/*.jar app.jar
 
 # Change ownership
 RUN chown -R appuser:appgroup /app

@@ -36,10 +36,9 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         "/api/auth/login",
         "/api/auth/register",
         "/api/auth/refresh",
-        "/api/tenants/register",
-        "/api/tenants/validate",
-        "/api/events",           // Public event listing
-        "/actuator"
+        "/api/tenants/**",       // All tenant endpoints are public (tenant registration, validation)
+        "/api/events/**",        // Public event listing
+        "/actuator/**"
     );
 
     public JwtAuthenticationFilter(@Value("${jwt.secret.key}") String secretKeyString) {
@@ -116,12 +115,11 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     private boolean isPublicPath(String path) {
         return PUBLIC_PATHS.stream().anyMatch(publicPath -> {
             if (publicPath.endsWith("/**")) {
-                return path.startsWith(publicPath.substring(0, publicPath.length() - 3));
-            } else if (publicPath.equals("/api/events")) {
-                // Allow GET requests to /api/events and /api/events/* 
-                return path.startsWith("/api/events");
+                // Match path prefix (e.g., /api/tenants/** matches /api/tenants, /api/tenants/123, etc.)
+                String prefix = publicPath.substring(0, publicPath.length() - 3);
+                return path.equals(prefix) || path.startsWith(prefix + "/");
             }
-            return path.startsWith(publicPath);
+            return path.equals(publicPath) || path.startsWith(publicPath + "/");
         });
     }
 

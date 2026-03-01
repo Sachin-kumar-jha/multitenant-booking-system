@@ -1,28 +1,20 @@
-# Multi-stage build for Auth Service
-FROM eclipse-temurin:21-jdk-alpine AS builder
+# Auth Service Dockerfile
+# Pre-build JAR with: mvn clean package -DskipTests
+FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
-COPY .mvn .mvn
-COPY mvnw .
-COPY pom.xml .
-
-RUN ./mvnw dependency:go-offline -B || true
-
-COPY src src
-RUN ./mvnw package -DskipTests -B
-
-# Runtime stage
-FROM eclipse-temurin:21-jre-alpine
-WORKDIR /app
-
+# Add non-root user
 RUN addgroup -g 1001 -S appgroup && \
     adduser -u 1001 -S appuser -G appgroup
 
-COPY --from=builder /app/target/*.jar app.jar
+# Copy the pre-built jar
+COPY target/*.jar app.jar
 
+# Change ownership
 RUN chown -R appuser:appgroup /app
 USER appuser
 
+# JVM tuning for containers
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC"
 
 EXPOSE 8082

@@ -31,15 +31,20 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     private final SecretKey secretKey;
     
-    // Paths that don't require authentication
+    // Paths that don't require authentication (but will still extract JWT if present)
     private static final List<String> PUBLIC_PATHS = List.of(
         "/api/auth/login",
         "/api/auth/register",
         "/api/auth/refresh",
-        "/api/tenants/**",       // All tenant endpoints are public (tenant registration, validation)
-        "/api/events/**",        // Public event listing
+        "/api/tenants/public/**",  // Public tenant info by subdomain
+        "/api/events/**",          // Public event listing
         "/actuator/**"
     );
+    
+    // Paths that are public for specific methods only (handled in filter logic)
+    // POST /api/tenants - create tenant (public)
+    // GET /api/tenants - list tenants (public)
+    // GET/PUT /api/tenants/{id} - admin only
 
     public JwtAuthenticationFilter(@Value("${jwt.secret.key}") String secretKeyString) {
         this.secretKey = Keys.hmacShaKeyFor(secretKeyString.getBytes(StandardCharsets.UTF_8));
@@ -73,14 +78,17 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             Long userId = claims.get("userId", Long.class);
             String role = claims.get("role", String.class);
 
-            if (tenantId == null) {
-                logger.warn("Token missing tenantId claim");
+            // Tenant management routes don't require tenantId (platform admin)
+            boolean isTenantManagementRoute = path.startsWith("/api/tenants/") && !path.startsWith("/api/tenants/public/");
+            
+            if (tenantId == null && !isTenantManagementRoute) {
+                logger.warn("Token missing tenantId claim for path: {}", path);
                 return unauthorizedResponse(exchange, "Invalid token: missing tenant information");
             }
 
             // Modify request to add tenant and user info headers for downstream services
             ServerHttpRequest modifiedRequest = request.mutate()
-                .header("X-Tenant-Id", tenantId)
+                .header("X-Tenant-Id", tenantId != null ? tenantId : "")
                 .header("X-User-Id", userId != null ? userId.toString() : "")
                 .header("X-User-Role", role != null ? role : "")
                 .build();
@@ -113,9 +121,14 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     }
 
     private boolean isPublicPath(String path) {
+        // Exact /api/tenants is public (POST create, GET list)
+        if (path.equals("/api/tenants")) {
+            return true;
+        }
+        
         return PUBLIC_PATHS.stream().anyMatch(publicPath -> {
             if (publicPath.endsWith("/**")) {
-                // Match path prefix (e.g., /api/tenants/** matches /api/tenants, /api/tenants/123, etc.)
+                // Match path prefix (e.g., /api/tenants/public/** matches /api/tenants/public/*)
                 String prefix = publicPath.substring(0, publicPath.length() - 3);
                 return path.equals(prefix) || path.startsWith(prefix + "/");
             }

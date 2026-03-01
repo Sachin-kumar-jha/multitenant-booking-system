@@ -44,6 +44,9 @@ public class AuthService {
     @Value("${jwt.refresh-expiration:604800000}")
     private long refreshTokenExpiration;
 
+    @Value("${admin.setup.key:CHANGE_ME_IN_PRODUCTION}")
+    private String adminSetupKey;
+
     public AuthService(
             UserRepository userRepository,
             RefreshTokenRepository refreshTokenRepository,
@@ -82,6 +85,44 @@ public class AuthService {
 
         // Record metric
         meterRegistry.counter("auth.registration.success", "tenant", tenantId).increment();
+
+        return createAuthResponse(savedUser, tenantId);
+    }
+
+    /**
+     * Register an admin user for a tenant.
+     * Requires a setup key for security.
+     */
+    @Transactional
+    public AuthResponse registerAdmin(AdminRegisterRequest request) {
+        String tenantId = TenantContext.requireCurrentTenant();
+
+        // Validate setup key
+        if (!adminSetupKey.equals(request.getSetupKey())) {
+            throw new InvalidSetupKeyException();
+        }
+
+        // Check if email already exists
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new EmailAlreadyExistsException(request.getEmail());
+        }
+
+        // Create admin user
+        User user = new User();
+        user.setId(UUID.randomUUID().toString());
+        user.setEmail(request.getEmail().toLowerCase());
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+        user.setPhone(request.getPhone());
+        user.setRole(UserRole.ADMIN);
+        user.setStatus(UserStatus.ACTIVE);
+
+        User savedUser = userRepository.save(user);
+        log.info("Admin user registered: {} for tenant {}", savedUser.getId(), tenantId);
+
+        // Record metric
+        meterRegistry.counter("auth.registration.admin.success", "tenant", tenantId).increment();
 
         return createAuthResponse(savedUser, tenantId);
     }
@@ -204,6 +245,12 @@ public class AuthService {
     public static class AccountSuspendedException extends BaseException {
         public AccountSuspendedException() {
             super("Account is suspended", HttpStatus.FORBIDDEN, "ACCOUNT_SUSPENDED");
+        }
+    }
+
+    public static class InvalidSetupKeyException extends BaseException {
+        public InvalidSetupKeyException() {
+            super("Invalid setup key", HttpStatus.FORBIDDEN, "INVALID_SETUP_KEY");
         }
     }
 }

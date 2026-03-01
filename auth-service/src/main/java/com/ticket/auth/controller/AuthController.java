@@ -32,6 +32,16 @@ public class AuthController {
     }
 
     /**
+     * Register an admin user.
+     * Requires a setup key for security.
+     */
+    @PostMapping("/register/admin")
+    public ResponseEntity<AuthResponse> registerAdmin(@Valid @RequestBody AdminRegisterRequest request) {
+        AuthResponse response = authService.registerAdmin(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
      * Login with email and password.
      */
     @PostMapping("/login")

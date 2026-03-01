@@ -127,9 +127,17 @@ public class TenantFilter extends OncePerRequestFilter {
     
     private boolean shouldSkipTenantValidation(HttpServletRequest request) {
         String path = request.getServletPath();
-        return path.startsWith("/actuator/") ||
-               path.startsWith("/api/tenants/public") ||
-               path.equals("/api/tenants") && "POST".equalsIgnoreCase(request.getMethod());
+        String method = request.getMethod();
+        
+        // Skip tenant validation for:
+        // - Actuator endpoints
+        // - All tenant management endpoints (tenant-service manages tenants, not per-tenant data)
+        // - Public authentication endpoints
+        return path.startsWith("/actuator") ||
+               path.startsWith("/api/tenants") ||
+               path.startsWith("/api/auth/login") ||
+               path.startsWith("/api/auth/register") ||
+               path.startsWith("/api/auth/refresh");
     }
     
     private void sendErrorResponse(HttpServletResponse response, HttpStatus status,
